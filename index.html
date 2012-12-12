@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <script src="PlotJS.js"></script>
+	<style>
+	
+	#plot-a, #plot-b {
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		width: 800px;
+		height: 600px;
+		margin: -300px 0 0 -400px;
+	}
+	#plot-a {
+		margin-left: -820px;
+	}
+	#plot-b {
+		margin-left: 20px;
+	}
+		
+	</style>
+</head>
+<body>
+    <canvas id="plot-a"></canvas>
+    <canvas id="plot-b"></canvas>
+	<script>
+
+	var plotA = new PlotJS();
+
+	plotA
+		.setSeries(
+			['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug']
+		).addData(
+			[1, 2 ,4, 8, 16, 32, 64, 128]
+		).draw('plot-a');
+	
+	var plotB = new PlotJS(),
+		sinData = {},
+		cosData = {},
+		xData = {},
+		x;
+	
+	for (x = 0; x <= Math.PI * 4; x += Math.PI / 60) {
+		sinData[x] = Math.sin(x);
+		cosData[x] = Math.cos(x);
+		xData[x] = Math.sin(2 * Math.sin(2 * Math.sin(2 * Math.sin(x))));
+	}
+
+	plotB
+		.addData(sinData, 'Sin(x)')
+		.addData(cosData, 'Cos(x)')
+		.addData(xData, 'sin(2sin(2sin(2sin(x))))')
+		.setTitle('Trigonometric functions')
+		.draw('plot-b', {
+			showPoints: false,
+			drawLegend: true,
+			valueDecimals: 1,
+			seriesDecimals: 2,
+			paddingTop: 60,
+			animate: true
+		});
+	
+	</script>
+</body>
+</html>
