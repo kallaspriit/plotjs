@@ -69,6 +69,10 @@ var PlotJS = function() {
 
 		return number.toFixed(decimals);
 	};
+
+	function map(x, inMin, inMax, outMin, outMax) {
+		return (x - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
+	}
 		
 	var PlotJS = function() {
 
@@ -165,6 +169,8 @@ var PlotJS = function() {
 				legendLineWidth: 20,
 				legendLineHeight: 20,
 				legendTop: 60,
+				rangeMin: null,
+				rangeMax: null,
 				axisStyle: '#333',
 				axisWidth: 1,
 				axisFont: '12px Arial',
@@ -241,21 +247,39 @@ var PlotJS = function() {
 			lastDrawnX = null,
 			minVal = getMinVal(),
 			maxVal = getMaxVal(),
-			range = getRange(minVal, maxVal),
-			valDiff = range.max - range.min,
+			range = getRange(minVal, maxVal);
+	
+		if (options.rangeMin !== null) {
+			range.min = options.rangeMin;
+		}
+	
+		if (options.rangeMax !== null) {
+			range.max = options.rangeMax;
+		}
+	
+		var valDiff = range.max - range.min,
 			xStep = plotWidth / (itemCount - 1),
 			yStep = valDiff / options.ySteps,
 			itemToX = function(item) {
 				return item * xStep;
 			},
 			valToY = function(value) {
-				var negOffset = 0;
+				// minVal = 0
+				// maxVal = plotHeight
+				
+				//var calcVal = value - minVal;
+				
+				//return calcVal * plotHeight / maxVal;
+				
+				return map(value, range.min, range.max, 0, plotHeight);
+		
+				/*var negOffset = 0;
 				
 				if (minVal < 0) {
 					negOffset = -minVal * plotHeight / valDiff;
 				}
 		
-				return value * plotHeight / valDiff + negOffset;
+				return value * plotHeight / valDiff + negOffset;*/
 			},
 			drawText = function(text, x, y, align, baseline, font) {
 				c.save();
@@ -284,6 +308,9 @@ var PlotJS = function() {
 		c.stroke();
 		
 		// horizontal ticks and labels
+		c.strokeStyle = options.axisStyle;
+		c.lineWidth = options.axisWidth;
+		
 		for (xVal = 0; xVal < itemCount; xVal++) {
 			xPos = itemToX(xVal);
 			
