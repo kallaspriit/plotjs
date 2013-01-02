@@ -1,3 +1,7 @@
+/**
+ * PlotJS is a very simple and minimalistic library to plot simple data as
+ * line-graphs.
+ */
 var PlotJS = function() {
 	var id,
 		series = [],
