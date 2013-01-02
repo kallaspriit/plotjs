@@ -9,37 +9,43 @@ var PlotJS = function() {
 		width,
 		height,
 		plotWidth,
-		plotHeight;
-	
+		plotHeight,
+		lastFunctionRangeStart = null,
+		lastFunctionRangeEnd = null,
+		lastFunctionRangeStep = null;
+
 	function getItemCount() {
 		var max = 0,
 			i;
-		
+
 		for (i = 0; i < data.length; i++) {
 			if (data[i].items.length > max) {
 				max = data[i].items.length;
 			}
 		}
-	
+
 		return max;
 	};
-	
+
 	function getExtVal(cmp) {
 		var min = null,
 			i,
 			j;
-		
+
 		for (i = 0; i < data.length; i++) {
 			for (j = 0; j < data[i].items.length; j++) {
-				if (min === null || cmp(data[i].items[j], min)) {
+				if (
+					!isNaN(data[i].items[j])
+					&& (min === null || cmp(data[i].items[j], min))
+				) {
 					min = data[i].items[j];
 				}
 			}
 		}
-	
+
 		return min;
 	};
-	
+
 	function getMinVal() {
 		return getExtVal(function(a, b) { return a < b; });
 	};
@@ -73,14 +79,14 @@ var PlotJS = function() {
 	function map(x, inMin, inMax, outMin, outMax) {
 		return (x - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
 	}
-		
+
 	var PlotJS = function() {
 
 	};
 
 	PlotJS.prototype.setSeries = function(items) {
 		series = items;
-		
+
 		return this;
 	};
 
@@ -92,43 +98,79 @@ var PlotJS = function() {
 		if (typeof(items) !== 'object' || items === null) {
 			return this;
 		}
-	
+
 		if (typeof(items.length) !== 'number') {
 			var series = [],
 				realItems = [],
 				seriesKey;
-		
+
 			for (seriesKey in items) {
 				if (parseFloat(seriesKey) + '' === seriesKey) {
 					seriesKey = parseFloat(seriesKey);
 				}
-				
+
 				series.push(seriesKey);
 				realItems.push(items[seriesKey]);
 			}
-			
+
 			this.setSeries(series);
 			items = realItems;
 		}
-		
+
 		data.push({
 			items: items,
 			name: name || 'Series ' + (data.length + 1),
 			color: color || colors[data.length % colors.length]
 		});
-		
+
 		return this;
+	};
+
+	PlotJS.prototype.addFunction = function(
+		fn,
+		rangeStart,
+		rangeEnd,
+		step,
+		name,
+		color
+	) {
+		rangeStart = typeof(rangeStart) === 'number' ? rangeStart : lastFunctionRangeStart || 0;
+		rangeEnd = typeof(rangeEnd) === 'number' ? rangeEnd : lastFunctionRangeEnd || 100;
+		step = typeof(step) === 'number' ? step : lastFunctionRangeStep || 0.1;
+
+		var series = [],
+			items = [],
+			value,
+			x;
+
+		for (x = rangeStart; x < rangeEnd; x += step) {
+			value = fn(x);
+
+			series.push(x);
+
+			/*if (isNaN(value)) {
+				continue;
+			}*/
+
+			items.push(value);
+		}
+
+		lastFunctionRangeStart = rangeStart;
+		lastFunctionRangeEnd = rangeEnd;
+		lastFunctionRangeStep = step;
+
+		return this.setSeries(series).addData(items, name, color);
 	};
 
 	PlotJS.prototype.clearData = function() {
 		data = [];
-		
+
 		return this;
 	};
 
 	PlotJS.prototype.setData = function(items, name, color) {
 		this.clearData().addData(items, name, color);
-		
+
 		return this;
 	};
 
@@ -146,7 +188,7 @@ var PlotJS = function() {
 
 	PlotJS.prototype.setTitle = function(newTitle) {
 		title = newTitle;
-		
+
 		return this;
 	};
 
@@ -191,28 +233,33 @@ var PlotJS = function() {
 				animationDuration: 1000
 			},
 			optionKey;
-		
+
 		if (options === null || typeof(options) !== 'object') {
 			options = {};
 		}
-	
+
 		for (optionKey in baseOptions) {
 			if (typeof(options[optionKey]) === 'undefined') {
 				options[optionKey] = baseOptions[optionKey];
 			}
 		}
-	
+
 		id = canvasId || 'plot';
 		canvas = document.getElementById(id);
+
+		if (canvas === null) {
+			throw new Error('Canvas element #' + id + ' not found');
+		}
+
 		c = canvas.getContext('2d');
 		width = canvas.width = canvas.offsetWidth;
 		height = canvas.height = canvas.offsetHeight;
 		plotWidth = width - options.paddingLeft - options.paddingRight;
 		plotHeight = height - options.paddingTop - options.paddingBottom;
-		
+
 		var itemCount = getItemCount(),
 			displayLimit = itemCount;
-		
+
 		if (options.animate) {
 			if (arguments.length > 2) {
 				displayLimit = arguments[2];
@@ -220,7 +267,7 @@ var PlotJS = function() {
 				displayLimit = 1;
 			}
 		}
-	
+
 		// transform so that plot zero is the image origin and y is flipped
 		c.setTransform(
 			1,
@@ -230,15 +277,15 @@ var PlotJS = function() {
 			options.paddingLeft + 0.5,
 			height - options.paddingBottom + 0.5
 		);
-		
+
 		// draw entire background
 		c.fillStyle = options.bgStyle;
 		c.fillRect(-options.paddingLeft, -options.paddingBottom, width, height);
-		
+
 		// draw plot background
 		c.fillStyle = options.plotStyle;
 		c.fillRect(0, 0, plotWidth, plotHeight);
-		
+
 		// draw ticks
 		var xVal,
 			xPos,
@@ -247,39 +294,35 @@ var PlotJS = function() {
 			lastDrawnX = null,
 			minVal = getMinVal(),
 			maxVal = getMaxVal(),
-			range = getRange(minVal, maxVal);
-	
+			valueRange = getRange(minVal, maxVal),
+			seriesRange = {
+				min: series[0],
+				max: series[series.length - 1],
+				diff: series[series.length - 1] - series[0]
+			};
+
 		if (options.rangeMin !== null) {
-			range.min = options.rangeMin;
+			valueRange.min = options.rangeMin;
 		}
-	
+
 		if (options.rangeMax !== null) {
-			range.max = options.rangeMax;
+			valueRange.max = options.rangeMax;
 		}
-	
-		var valDiff = range.max - range.min,
+
+		var valDiff = valueRange.max - valueRange.min,
 			xStep = plotWidth / (itemCount - 1),
 			yStep = valDiff / options.ySteps,
 			itemToX = function(item) {
 				return item * xStep;
 			},
 			valToY = function(value) {
-				// minVal = 0
-				// maxVal = plotHeight
-				
-				//var calcVal = value - minVal;
-				
-				//return calcVal * plotHeight / maxVal;
-				
-				return map(value, range.min, range.max, 0, plotHeight);
-		
-				/*var negOffset = 0;
-				
-				if (minVal < 0) {
-					negOffset = -minVal * plotHeight / valDiff;
-				}
-		
-				return value * plotHeight / valDiff + negOffset;*/
+				return map(
+					value,
+					valueRange.min,
+					valueRange.max,
+					0,
+					plotHeight
+				);
 			},
 			drawText = function(text, x, y, align, baseline, font) {
 				c.save();
@@ -298,7 +341,7 @@ var PlotJS = function() {
 				c.fillText(text, x, -y);
 				c.restore();
 			};
-		
+
 		// draw zero line if requested
 		c.strokeStyle = options.zeroLineStyle;
 		c.beginPath();
@@ -306,24 +349,28 @@ var PlotJS = function() {
 		c.lineTo(plotWidth, valToY(0));
 		c.closePath();
 		c.stroke();
-		
+
 		// horizontal ticks and labels
 		c.strokeStyle = options.axisStyle;
 		c.lineWidth = options.axisWidth;
-		
+
 		for (xVal = 0; xVal < itemCount; xVal++) {
 			xPos = itemToX(xVal);
-			
-			if (lastDrawnX !== null && xPos - lastDrawnX < options.xMinStep) {
+
+			if (
+				(lastDrawnX !== null && xPos - lastDrawnX < options.xMinStep)
+				&& xVal !== itemCount - 1
+				//&& Math.floor(series[xVal]) !== series[xVal]
+			) {
 				continue;
 			}
-			
+
 			c.beginPath();
 			c.moveTo(xPos, 0);
 			c.lineTo(xPos, options.stepHeight);
 			c.closePath();
 			c.stroke();
-			
+
 			drawText(
 				typeof(series[xVal]) !== 'undefined'
 					? round(series[xVal], options.seriesDecimals)
@@ -334,20 +381,53 @@ var PlotJS = function() {
 				'top',
 				options.axisFont
 			);
-			
+
 			lastDrawnX = xPos;
 		}
-	
+
+		/*var steps = 10,
+			xStep = seriesRange.diff / steps;
+
+		for (var i = seriesRange.min; i <= seriesRange.max; i += xStep) {
+			xPos = itemToX(xVal);
+
+			if (
+				(lastDrawnX !== null && xPos - lastDrawnX < options.xMinStep)
+				&& xVal !== itemCount - 1
+			) {
+				continue;
+			}
+
+			c.beginPath();
+			c.moveTo(xPos, 0);
+			c.lineTo(xPos, options.stepHeight);
+			c.closePath();
+			c.stroke();
+
+			drawText(
+				typeof(series[xVal]) !== 'undefined'
+					? round(series[xVal], options.seriesDecimals)
+					: round(xVal, options.seriesDecimals),
+				xPos,
+				-options.textPaddingY,
+				'center',
+				'top',
+				options.axisFont
+			);
+
+			lastDrawnX = xPos;
+		}*/
+
 		// vertical ticks and labels
-		for (yVal = range.min; yVal <= range.max; yVal += yStep) {
+		for (yVal = valueRange.min; yVal <= valueRange.max; yVal += yStep) {
 			yPos = valToY(yVal);
-			
+
 			c.beginPath();
 			c.moveTo(0, yPos);
 			c.lineTo(options.stepWidth, yPos);
 			c.closePath();
 			c.stroke();
-			
+
 			drawText(
 				round(yVal, options.valueDecimals),
 				-options.textPaddingX,
@@ -357,70 +437,86 @@ var PlotJS = function() {
 				options.axisFont
 			);
 		}
-	
+
 		// draw axis lines
 		c.strokeStyle = options.axisStyle;
 		c.lineWidth = options.axisWidth;
-		
+
 		c.beginPath();
 		c.moveTo(0, 0);
 		c.lineTo(plotWidth, 0);
 		c.closePath();
 		c.stroke();
-		
+
 		c.beginPath();
 		c.moveTo(0, 0);
 		c.lineTo(0, plotHeight);
 		c.closePath();
 		c.stroke();
-	
+
 		// draw data
-		var i,
-			j;
-	
+		var item,
+			i,
+			j,
+			lastNaN = false;
+
 		for (i = 0; i < data.length; i++) {
 			if (data[i].items.length === 0) {
 				continue;
 			}
-		
+
 			//xPos = itemToX(0);
 			//yPos = valToY(data[0].items[0]);
-			
+
 			c.strokeStyle = data[i].color;
 			c.fillStyle = data[i].color;
 			c.beginPath();
 			//c.moveTo(xPos, yPos);
-			
+
 			for (j = 0; j < Math.min(data[i].items.length, displayLimit); j++) {
+				item = data[i].items[j];
+
+				if (isNaN(item)) {
+					lastNaN = true;
+
+					continue;
+				}
+
 				xPos = itemToX(j);
-				yPos = valToY(data[i].items[j]);
-				
-				c.lineTo(xPos, yPos);
-				
+				yPos = valToY(item);
+
+				if (lastNaN) {
+					c.moveTo(xPos, yPos);
+				} else {
+					c.lineTo(xPos, yPos);
+				}
+
 				if (options.showPoints) {
 					c.fillRect(xPos - 1, yPos - 1, 3, 3);
 				}
+
+				lastNaN = false;
 			}
-			
+
 			c.stroke();
 		}
-	
+
 		// draw legent if requested
 		if (options.drawLegend) {
 			for (i = 0; i < data.length; i++) {
 				if (data[i].items.length === 0) {
 					continue;
 				}
-			
+
 				xPos = plotWidth - plotWidth / 4;
 				yPos = plotHeight - options.legendTop + options.legendLineHeight * i;
-			
+
 				c.strokeStyle = data[i].color;
 				c.beginPath();
 				c.moveTo(xPos, yPos);
 				c.lineTo(xPos + options.legendLineWidth, yPos);
 				c.stroke();
-				
+
 				drawText(
 					data[i].name,
 					xPos + options.legendLineWidth * 1.25,
@@ -431,7 +527,7 @@ var PlotJS = function() {
 				);
 			}
 		}
-	
+
 		// draw title if available
 		if (title !== null) {
 			drawText(
@@ -443,15 +539,15 @@ var PlotJS = function() {
 				options.titleFont
 			);
 		}
-	
+
 		if (options.animate && displayLimit < itemCount) {
 			var self = this;
-			
+
 			window.setTimeout(function() {
 				self.draw(canvasId, options, displayLimit + 1);
 			}, options.animationDuration / itemCount);
 		}
-		
+
 		return this;
 	};
 

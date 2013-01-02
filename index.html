@@ -5,29 +5,35 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <script src="PlotJS.js"></script>
 	<style>
-	
-	#plot-a, #plot-b {
+
+	#plot-a, #plot-b, #plot-c, #plot-d {
 		position: absolute;
 		left: 50%;
 		top: 50%;
-		width: 800px;
-		height: 600px;
-		margin: -300px 0 0 -400px;
+		width: 400px;
+		height: 300px;
+		margin: -300px 0 0 -410px;
 	}
-	#plot-a {
-		margin-left: -820px;
+	#plot-a, #plot-c {
+		margin-left: -410px;
 	}
-	#plot-b {
-		margin-left: 20px;
+	#plot-b, #plot-d {
+		margin-left: 10px;
 	}
-		
+	#plot-c, #plot-d {
+		margin-top: 10px;
+	}
+
 	</style>
 </head>
 <body>
     <canvas id="plot-a"></canvas>
     <canvas id="plot-b"></canvas>
+    <canvas id="plot-c"></canvas>
+    <canvas id="plot-d"></canvas>
 	<script>
 
+	// simple test with custom series
 	var plotA = new PlotJS();
 
 	plotA
@@ -36,13 +42,14 @@
 		).addData(
 			[1, 2 ,4, 8, 16, 32, 64, 128]
 		).draw('plot-a');
-	
+
+	// drawing custom data with options
 	var plotB = new PlotJS(),
 		sinData = {},
 		cosData = {},
 		xData = {},
 		x;
-	
+
 	for (x = 0; x <= Math.PI * 4; x += Math.PI / 60) {
 		sinData[x] = Math.sin(x);
 		cosData[x] = Math.cos(x);
@@ -62,7 +69,42 @@
 			paddingTop: 60,
 			animate: true
 		});
-	
+
+	// plotting functions directly
+	var plotC = new PlotJS();
+
+	plotC
+		.addFunction(
+			function(x) {
+				return 2 * Math.sqrt((-Math.abs(Math.abs(x) - 1)) * Math.abs(3 - Math.abs(x)) / ((Math.abs(x) - 1) * (3 - Math.abs(x)))) * (1 + Math.abs(Math.abs(x) - 3) / (Math.abs(x) - 3)) * Math.sqrt(1 - Math.pow(x / 7, 2)) + (5 + 0.97 * (Math.abs(x - 0.5) + Math.abs(x + 0.5)) - 3 * (Math.abs(x - 0.75) + Math.abs(x + 0.75))) * (1 + Math.abs(1 - Math.abs(x)) / (1 - Math.abs(x)));
+			},
+			-8.0,
+			8.0,
+			0.001
+		)
+		.addFunction(
+			function(x) {
+				return Math.abs(x / 2) - 0.0913722 * Math.pow(x, 2) - 3 + Math.sqrt(1 - Math.pow(Math.abs(Math.abs(x) - 2) - 1, 2));
+			}
+		)
+		.addFunction(
+			function(x) {
+				return (-3) * Math.sqrt(1 - Math.pow(x / 7, 2)) * Math.sqrt(Math.abs(Math.abs(x) - 4) / (Math.abs(x) - 4));
+			}
+		)
+		.addFunction(
+			function(x) {
+				return (2.71052 + 1.5 - 0.5 * Math.abs(x) - 1.35526 * Math.sqrt(4 - Math.pow(Math.abs(x) - 1,  2))) * Math.sqrt(Math.abs(Math.abs(x) - 1) / (Math.abs(x) - 1)) + 0.9;
+			}
+		)
+		.setTitle('NaNaNaNa Batman!')
+		.draw('plot-c', {
+			showPoints: false,
+			paddingTop: 60,
+			valueDecimals: 2,
+			seriesDecimals: 2,
+		});
+
 	</script>
 </body>
 </html>
