@@ -138,6 +138,10 @@ var PlotJS = function() {
 		return series;
 	};
 
+	PlotJS.prototype.isNumericSeries = function() {
+		return series.length === 0 || typeof(series[0]) === 'number';
+	};
+
 	PlotJS.prototype.addData = function(values, name, color) {
 		if (typeof(values) !== 'object' || values === null) {
 			return this;
@@ -248,7 +252,7 @@ var PlotJS = function() {
 				paddingTop: 10,
 				textPaddingX: 4,
 				textPaddingY: 4,
-				xMinStep: 60,
+				xMinStep: 40,
 				seriesDecimals: 0,
 				valueDecimals: 0,
 				titleTop: 20,
@@ -425,57 +429,90 @@ var PlotJS = function() {
 		c.strokeStyle = options.axisStyle;
 		c.lineWidth = options.axisWidth;
 
-		var seriesStep = seriesRange.diff / options.seriesSteps,
-            seriesLabel,
-            seriesAlign,
-            seriesCounter = 0;
-
-		for (i = seriesRange.min; i <= seriesRange.max; i += seriesStep) {
-			xPos = seriesToX(i);
-
-			/*if (
-				(lastDrawnX !== null && xPos - lastDrawnX < options.xMinStep)
-				&& xVal !== itemCount - 1
-			) {
-				continue;
-			}*/
-
-			c.beginPath();
-			c.moveTo(xPos, 0);
-			c.lineTo(xPos, options.stepHeight);
-			c.closePath();
-			c.stroke();
-
-            if (series.length > 0) {
-                var seriesVal = round(i, options.seriesDecimals);
-
-                seriesLabel = typeof(series[seriesVal]) !== 'undefined'
-                    ? round(series[seriesVal], options.seriesDecimals)
-                    : seriesVal;
-            } else {
-                seriesLabel = i;
-            }
-
-            if (seriesCounter == 0) {
-                seriesAlign = 'left';
-            } else if (seriesCounter == options.seriesSteps) {
-                seriesAlign = 'right';
-            } else {
-                seriesAlign = 'center';
-            }
-
-			drawText(
-				seriesLabel,
-				xPos,
-				-options.textPaddingY,
+        if (this.isNumericSeries()) {
+            var seriesStep = seriesRange.diff / options.seriesSteps,
+                seriesLabel,
                 seriesAlign,
-				'top',
-				options.axisFont
-			);
+                seriesCounter = 0;
 
-			lastDrawnX = xPos;
-            seriesCounter++;
-		}
+            for (i = seriesRange.min; i <= seriesRange.max; i += seriesStep) {
+                xPos = seriesToX(i);
+
+                /*if (
+                    (lastDrawnX !== null && xPos - lastDrawnX < options.xMinStep)
+                    && xVal !== itemCount - 1
+                ) {
+                    continue;
+                }*/
+
+                c.beginPath();
+                c.moveTo(xPos, 0);
+                c.lineTo(xPos, options.stepHeight);
+                c.closePath();
+                c.stroke();
+
+                if (series.length > 0) {
+                    var seriesVal = round(i, options.seriesDecimals);
+
+                    seriesLabel = typeof(series[seriesVal]) !== 'undefined'
+                        ? round(series[seriesVal], options.seriesDecimals)
+                        : seriesVal;
+                } else {
+                    seriesLabel = i;
+                }
+
+                if (seriesCounter == 0) {
+                    seriesAlign = 'left';
+                } else if (seriesCounter == options.seriesSteps) {
+                    seriesAlign = 'right';
+                } else {
+                    seriesAlign = 'center';
+                }
+
+                drawText(
+                    seriesLabel,
+                    xPos,
+                    -options.textPaddingY,
+                    seriesAlign,
+                    'top',
+                    options.axisFont
+                );
+
+                lastDrawnX = xPos;
+                seriesCounter++;
+            }
+        } else {
+            for (var xVal = 0; xVal < itemCount; xVal++) {
+                xPos = itemToX(xVal);
+
+                if (
+                    (lastDrawnX !== null && xPos - lastDrawnX < options.xMinStep)
+                        && xVal !== itemCount - 1
+                        //&& Math.floor(series[xVal]) !== series[xVal]
+                    ) {
+                    continue;
+                }
+
+                c.beginPath();
+                c.moveTo(xPos, 0);
+                c.lineTo(xPos, options.stepHeight);
+                c.closePath();
+                c.stroke();
+
+                drawText(
+                    typeof(series[xVal]) !== 'undefined'
+                        ? round(series[xVal], options.seriesDecimals)
+                        : round(xVal, options.seriesDecimals),
+                    xPos,
+                    -options.textPaddingY,
+                    'center',
+                    'top',
+                    options.axisFont
+                );
+
+                lastDrawnX = xPos;
+            }
+        }
 
 		// vertical ticks and labels
 		for (yVal = valueRange.min; yVal <= valueRange.max; yVal += yStep) {
@@ -540,7 +577,7 @@ var PlotJS = function() {
 					continue;
 				}
 
-                if (series.length == 0) {
+                if (series.length == 0 || !this.isNumericSeries()) {
                     xPos = itemToX(j);
                 } else {
                     xPos = seriesToX(xValue);
