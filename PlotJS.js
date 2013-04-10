@@ -461,6 +461,10 @@ var PlotJS = function() {
                     seriesLabel = i;
                 }
 
+	            if (typeof(seriesLabel) === 'number') {
+		            seriesLabel = round(seriesLabel, options.seriesDecimals);
+	            }
+
                 if (seriesCounter == 0) {
                     seriesAlign = 'left';
                 } else if (seriesCounter == options.seriesSteps) {
@@ -515,23 +519,25 @@ var PlotJS = function() {
         }
 
 		// vertical ticks and labels
-		for (yVal = valueRange.min; yVal <= valueRange.max; yVal += yStep) {
-			yPos = valToY(yVal);
+		if (yStep > 0) {
+			for (yVal = valueRange.min; yVal <= valueRange.max; yVal += yStep) {
+				yPos = valToY(yVal);
 
-			c.beginPath();
-			c.moveTo(0, yPos);
-			c.lineTo(options.stepWidth, yPos);
-			c.closePath();
-			c.stroke();
+				c.beginPath();
+				c.moveTo(0, yPos);
+				c.lineTo(options.stepWidth, yPos);
+				c.closePath();
+				c.stroke();
 
-			drawText(
-				round(yVal, options.valueDecimals),
-				-options.textPaddingX,
-				yPos,
-				'right',
-				'middle',
-				options.axisFont
-			);
+				drawText(
+					round(yVal, options.valueDecimals),
+					-options.textPaddingX,
+					yPos,
+					'right',
+					'middle',
+					options.axisFont
+				);
+			}
 		}
 
 		// draw axis lines
